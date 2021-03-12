@@ -1,0 +1,441 @@
+package krythos.gridworld;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.ComponentOrientation;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseEvent;
+
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.JTextArea;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
+import krythos.gridworld.map.Entity;
+import krythos.gridworld.map.GridMap;
+import krythos.gridworld.map.Location;
+import krythos.util.abstract_interfaces.AbsMouseListener;
+import krythos.util.dimensional_arraylist.ArrayList2D;
+import krythos.util.logger.Log;
+import krythos.util.swing.DropSelectionV2;
+
+public class GridWorld {
+	private static String TAG = "GridWord";
+
+	// GridWorld
+	private GridMap m_map;
+	private Thread m_runThread;
+
+	// GridWindow
+	private int m_view_x, m_view_y;
+	private GridWindow m_window;
+
+	public GridWorld(GridMap map, int width, int height) {
+		if (map == null)
+			throw new RuntimeException("GridMap can not be null");
+		m_view_x = 0;
+		m_view_y = 0;
+
+		m_window = new GridWindow(width, height);
+
+		m_runThread = null;
+
+		m_window.addActionListener(e -> {
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STEP_BUTTON)
+				step();
+
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.RUN_BUTTON) {
+				if (m_runThread == null) {
+					m_runThread = new Thread() {
+						@Override
+						public void run() {
+							while (m_runThread != null) {
+								step();
+								try {
+									Thread.sleep(1000 / m_window.getRunSpeed());
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+						}
+					};
+					m_runThread.start();
+					m_window.toggleRunning(false);
+				}
+			}
+
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STOP_BUTTON) {
+				m_runThread = null;
+				m_window.toggleRunning(true);
+			}
+		});
+
+		setMap(map);
+
+		updateWindow();
+	}
+
+
+	public void step() {
+		m_map.step();
+		updateWindow();
+	}
+
+
+	public void addEntity(Entity e) {
+		m_map.addEntity(e);
+		updateWindow();
+	}
+
+
+	public void updateWindow() {
+		Log.info(TAG, "updateWindow()");
+		int width, height;
+		width = window().getWidth();
+		height = window().getHeight();
+		for (int x = 0; x < width; x++)
+			for (int y = 0; y < height; y++) {
+				Entity e;
+				try {
+					e = m_map.get(new Location(x, y));
+					JLabel label = window().m_labels.get(x, y);
+					window().setEnabled(x, y, true);
+					if (e == null)
+						label.setIcon(null);
+					else
+						label.setIcon(new ImageIcon(e.getImage()));
+
+				} catch (RuntimeException ex) {
+					e = null;
+					JLabel label = window().m_labels.get(x, y);
+					label.setIcon(null);
+					window().setEnabled(x, y, false);
+				}
+			}
+	}
+
+
+	public GridWindow window() {
+		return m_window;
+	}
+
+
+	/**
+	 * Modifies the position of the viewpoint of this GridWorld by the given
+	 * coordinates.
+	 * 
+	 * @param move_x
+	 * @param move_y
+	 */
+	public void moveView(int move_x, int move_y) {
+		Log.info(TAG, "moveView(): " + move_x + ", " + move_y);
+		m_view_x += move_x;
+		m_view_y += move_y;
+	}
+
+
+	/**
+	 * Sets the position of the viewpoint of this GridWorld to the given
+	 * coordinates.
+	 * 
+	 * @param move_x
+	 * @param move_y
+	 */
+	public void setView(int move_x, int move_y) {
+		Log.info(TAG, "setView(): " + move_x + ", " + move_y);
+		m_view_x = move_x;
+		m_view_y = move_y;
+	}
+
+
+	public GridMap getMap() {
+		return m_map;
+	}
+
+
+	public void setMap(GridMap newMap) {
+		m_map = newMap;
+		m_window.setMap(m_map);
+	}
+
+	public class GridWindow {
+		private static final String TAG = "GridWorld.GridMap";
+		public static final int UNKNOWN_COMPONENT = 0;
+		public static final int STEP_BUTTON = 1;
+		public static final int RUN_BUTTON = 2;
+		public static final int STOP_BUTTON = 3;
+
+
+		private JFrame m_frame;
+		private JPanel m_contentPane, m_gridPane, m_controlPane;
+		private JButton m_step, m_run, m_stop;
+		private ArrayList2D<JLabel> m_labels;
+		private int m_width, m_height;
+		private int m_run_speed;
+		private JSlider m_speedSlider;
+
+		private GridMap m_map;
+
+		private Color m_enabledColor = Color.LIGHT_GRAY;
+		private Color m_disabledColor = Color.DARK_GRAY;
+
+		public GridWindow(int width, int height) {
+			setSize(width, height);
+			toggleRunning(true);
+		}
+
+
+		public void setMap(GridMap map) {
+			m_map = map;
+		}
+
+
+		public int getWidth() {
+			return m_width;
+		}
+
+
+		public int getHeight() {
+			return m_height;
+		}
+
+
+		public void setEnabled(int x, int y, boolean enabled) {
+			JLabel label = m_labels.get(x, y);
+			label.setEnabled(enabled);
+
+			if (enabled)
+				label.setBackground(m_enabledColor);
+			else
+				label.setBackground(m_disabledColor);
+		}
+
+
+		public void setSize(int width, int height) {
+			m_width = width;
+			m_height = height;
+			m_run_speed = 1;
+			setupWindow();
+		}
+
+
+		public int getRunSpeed() {
+			return m_run_speed;
+		}
+
+
+		public void toggleRunning(boolean running) {
+			m_run.setEnabled(running);
+			m_step.setEnabled(running);
+			m_stop.setEnabled(!running);
+		}
+
+
+		public void setupWindow() {
+			boolean previously_initialized = false;
+			// Setup Frame
+			if (m_frame == null) {
+				m_frame = new JFrame("GridWindow");
+				m_frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				m_frame.setBounds(100, 100, 700, 600);
+				m_contentPane = new JPanel();
+				m_contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+				m_contentPane.setLayout(new BoxLayout(m_contentPane, BoxLayout.Y_AXIS));
+				m_frame.setContentPane(m_contentPane);
+			} else {
+				previously_initialized = true;
+				m_frame.getContentPane().removeAll();
+				m_frame.repaint();
+			}
+
+			// Setup GridPane
+			m_gridPane = new JPanel();
+			m_gridPane.setLayout(new GridLayout(m_width, m_height));
+
+			// Generate Grid Labels
+			m_labels = new ArrayList2D<JLabel>(m_width, m_height);
+			for (int h = 0; h < m_height; h++) {
+				for (int w = 0; w < m_width; w++) {
+					if (h == 0)
+						m_labels.addRow();
+					JLabel label = new JLabel();
+
+					// Init Label
+					label.setBackground(Color.LIGHT_GRAY);
+					label.setOpaque(true);
+					label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
+					label.setName(w + ", " + h);
+					// TODO This can share a single MouseListener and use ((JLabel)e.getSource())
+					// instead of a direct reference to the label. Change that later when you
+					// actually start implementing functionality for clicking the grid.
+					label.addMouseListener(new AbsMouseListener() {
+						@Override
+						public void mouseEntered(MouseEvent e) {
+							if (label.isEnabled())
+								label.setBorder(BorderFactory.createLineBorder(Color.black, 2));
+						}
+
+
+						@Override
+						public void mouseExited(MouseEvent e) {
+							label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
+						}
+
+
+						@Override
+						public void mouseClicked(MouseEvent e) {
+							Log.info(TAG, "Clicked Label:" + label.getName());
+							if (m_map != null) {
+								int w, h;
+								w = Integer.valueOf(label.getName().split(",")[0].trim());
+								h = Integer.valueOf(label.getName().split(",")[1].trim());
+								Entity entity = m_map.get(new Location(w, h));
+								String[] arr_options = entity.getCommands();
+								if (arr_options != null) {
+									String display = "";
+									for(String s : arr_options)
+										display += s + ", ";
+									display = display.substring(0,display.length()-2);
+									DropSelectionV2 dl = new DropSelectionV2(m_frame,label,(Object[])arr_options);
+									dl.addDropListener(dle->{
+										entity.processCommand(dle.getSource().toString());
+										dl.setVisible(false);
+									});
+									dl.setVisible(true);
+									//entity.processCommand(Dialogs.showInputAreaDialog(null, display, ""));
+								}
+							}
+						}
+					});
+
+					m_gridPane.add(label);
+					m_labels.add(w, label);
+				}
+			}
+
+			// Assign GridPane
+			m_gridPane.setBackground(Color.gray);
+			m_contentPane.add(m_gridPane, BorderLayout.CENTER);
+
+			// Setup ControlPane
+			m_controlPane = new JPanel();
+			m_controlPane.setLayout(new FlowLayout());
+			m_controlPane.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
+
+			// step button
+			m_step = new JButton("Step");
+			m_controlPane.add(m_step);
+
+			// run button
+			m_run = new JButton("Run");
+			m_controlPane.add(m_run);
+
+			// Speed Label
+			JTextArea speedLabel = new JTextArea("1");
+			speedLabel.setBorder(BorderFactory.createLineBorder(Color.gray, 1));
+			speedLabel.getDocument().addDocumentListener(new DocumentListener() {
+				@Override
+				public void changedUpdate(DocumentEvent e) {
+					update();
+				}
+
+
+				@Override
+				public void removeUpdate(DocumentEvent e) {
+					update();
+				}
+
+
+				@Override
+				public void insertUpdate(DocumentEvent e) {
+					update();
+				}
+
+
+				private void update() {
+					try {
+						if (!speedLabel.getText().equals("")) {
+							int value = Integer.valueOf(speedLabel.getText());
+							if (value > 0)
+								m_run_speed = value;
+						}
+					} catch (NumberFormatException e) {
+						e.printStackTrace();
+					}
+				}
+			});
+			m_controlPane.add(speedLabel);
+
+			// Speed Slider
+			m_speedSlider = new JSlider(1, 10, 1);
+			m_speedSlider.addChangeListener(e -> {
+				m_run_speed = ((JSlider) e.getSource()).getValue();
+				speedLabel.setText("" + m_run_speed);
+			});
+			m_controlPane.add(m_speedSlider);
+
+			m_stop = new JButton("Stop");
+			m_controlPane.add(m_stop);
+
+			// Assign ControlPane
+			m_controlPane.setAlignmentX(Component.CENTER_ALIGNMENT);
+			m_contentPane.add(m_controlPane);/* , BorderLayout.PAGE_END); */
+			// m_contentPane.add(m_controlPane , BorderLayout.PAGE_END);
+
+
+			// Configure GridPane Aspect Ratio Sizing
+			if (!previously_initialized)
+				m_contentPane.addComponentListener(new ComponentAdapter() {
+					@Override
+					public void componentResized(ComponentEvent e) {
+						int w = m_frame.getWidth();
+						int h = m_frame.getHeight() - ((int) (m_step.getHeight() * 3.1));
+						int size = Math.min(w, h);
+						m_gridPane.setPreferredSize(new Dimension(size, size));
+						m_gridPane.setMaximumSize(new Dimension(size, size));
+						m_gridPane.setMinimumSize(new Dimension(size, size));
+						m_contentPane.revalidate();
+					}
+				});
+
+			/// Finalize
+			m_frame.setVisible(true);
+		}
+
+
+		public void addActionListener(ActionListener l) {
+			m_step.addActionListener(l);
+			m_run.addActionListener(l);
+			m_stop.addActionListener(l);
+		}
+
+
+		public int getComponentID(Component c) {
+			if (c.equals(m_step))
+				return STEP_BUTTON;
+
+			if (c.equals(m_stop))
+				return STOP_BUTTON;
+
+			if (c.equals(m_run))
+				return RUN_BUTTON;
+
+			return UNKNOWN_COMPONENT;
+
+		}
+	}
+}
