@@ -34,144 +34,6 @@ import krythos.util.logger.Log;
 import krythos.util.swing.DropSelectionV2;
 
 public class GridWorld {
-	private static String TAG = "GridWord";
-
-	// GridWorld
-	private GridMap m_map;
-	private Thread m_runThread;
-
-	// GridWindow
-	private int m_view_x, m_view_y;
-	private GridWindow m_window;
-
-	public GridWorld(GridMap map, int width, int height) {
-		if (map == null)
-			throw new RuntimeException("GridMap can not be null");
-		m_view_x = 0;
-		m_view_y = 0;
-
-		m_window = new GridWindow(width, height);
-
-		m_runThread = null;
-
-		m_window.addActionListener(e -> {
-			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STEP_BUTTON)
-				step();
-
-			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.RUN_BUTTON) {
-				if (m_runThread == null) {
-					m_runThread = new Thread() {
-						@Override
-						public void run() {
-							while (m_runThread != null) {
-								step();
-								try {
-									Thread.sleep(1000 / m_window.getRunSpeed());
-								} catch (InterruptedException e) {
-									e.printStackTrace();
-								}
-							}
-						}
-					};
-					m_runThread.start();
-					m_window.toggleRunning(false);
-				}
-			}
-
-			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STOP_BUTTON) {
-				m_runThread = null;
-				m_window.toggleRunning(true);
-			}
-		});
-
-		setMap(map);
-
-		updateWindow();
-	}
-
-
-	public void step() {
-		m_map.step();
-		updateWindow();
-	}
-
-
-	public void addEntity(Entity e) {
-		m_map.addEntity(e);
-		updateWindow();
-	}
-
-
-	public void updateWindow() {
-		Log.info(TAG, "updateWindow()");
-		int width, height;
-		width = window().getWidth();
-		height = window().getHeight();
-		for (int x = 0; x < width; x++)
-			for (int y = 0; y < height; y++) {
-				Entity e;
-				try {
-					e = m_map.get(new Location(x, y));
-					JLabel label = window().m_labels.get(x, y);
-					window().setEnabled(x, y, true);
-					if (e == null)
-						label.setIcon(null);
-					else
-						label.setIcon(new ImageIcon(e.getImage()));
-
-				} catch (RuntimeException ex) {
-					e = null;
-					JLabel label = window().m_labels.get(x, y);
-					label.setIcon(null);
-					window().setEnabled(x, y, false);
-				}
-			}
-	}
-
-
-	public GridWindow window() {
-		return m_window;
-	}
-
-
-	/**
-	 * Modifies the position of the viewpoint of this GridWorld by the given
-	 * coordinates.
-	 * 
-	 * @param move_x
-	 * @param move_y
-	 */
-	public void moveView(int move_x, int move_y) {
-		Log.info(TAG, "moveView(): " + move_x + ", " + move_y);
-		m_view_x += move_x;
-		m_view_y += move_y;
-	}
-
-
-	/**
-	 * Sets the position of the viewpoint of this GridWorld to the given
-	 * coordinates.
-	 * 
-	 * @param move_x
-	 * @param move_y
-	 */
-	public void setView(int move_x, int move_y) {
-		Log.info(TAG, "setView(): " + move_x + ", " + move_y);
-		m_view_x = move_x;
-		m_view_y = move_y;
-	}
-
-
-	public GridMap getMap() {
-		return m_map;
-	}
-
-
-	public void setMap(GridMap newMap) {
-		m_map = newMap;
-		m_window.setMap(m_map);
-	}
-
 	public class GridWindow {
 		private static final String TAG = "GridWorld.GridMap";
 		public static final int UNKNOWN_COMPONENT = 0;
@@ -199,18 +61,40 @@ public class GridWorld {
 		}
 
 
-		public void setMap(GridMap map) {
-			m_map = map;
+		public void addActionListener(ActionListener l) {
+			m_step.addActionListener(l);
+			m_run.addActionListener(l);
+			m_stop.addActionListener(l);
 		}
 
 
-		public int getWidth() {
-			return m_width;
+		public int getComponentID(Component c) {
+			if (c.equals(m_step))
+				return STEP_BUTTON;
+
+			if (c.equals(m_stop))
+				return STOP_BUTTON;
+
+			if (c.equals(m_run))
+				return RUN_BUTTON;
+
+			return UNKNOWN_COMPONENT;
+
 		}
 
 
 		public int getHeight() {
 			return m_height;
+		}
+
+
+		public int getRunSpeed() {
+			return m_run_speed;
+		}
+
+
+		public int getWidth() {
+			return m_width;
 		}
 
 
@@ -225,23 +109,16 @@ public class GridWorld {
 		}
 
 
+		public void setMap(GridMap map) {
+			m_map = map;
+		}
+
+
 		public void setSize(int width, int height) {
 			m_width = width;
 			m_height = height;
 			m_run_speed = 1;
 			setupWindow();
-		}
-
-
-		public int getRunSpeed() {
-			return m_run_speed;
-		}
-
-
-		public void toggleRunning(boolean running) {
-			m_run.setEnabled(running);
-			m_step.setEnabled(running);
-			m_stop.setEnabled(!running);
 		}
 
 
@@ -284,19 +161,6 @@ public class GridWorld {
 					// actually start implementing functionality for clicking the grid.
 					label.addMouseListener(new AbsMouseListener() {
 						@Override
-						public void mouseEntered(MouseEvent e) {
-							if (label.isEnabled())
-								label.setBorder(BorderFactory.createLineBorder(Color.black, 2));
-						}
-
-
-						@Override
-						public void mouseExited(MouseEvent e) {
-							label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
-						}
-
-
-						@Override
 						public void mouseClicked(MouseEvent e) {
 							Log.info(TAG, "Clicked Label:" + label.getName());
 							if (m_map != null) {
@@ -307,18 +171,34 @@ public class GridWorld {
 								String[] arr_options = entity.getCommands();
 								if (arr_options != null) {
 									String display = "";
-									for(String s : arr_options)
+									for (String s : arr_options)
 										display += s + ", ";
-									display = display.substring(0,display.length()-2);
-									DropSelectionV2 dl = new DropSelectionV2(m_frame,label,(Object[])arr_options);
-									dl.addDropListener(dle->{
+									display = display.substring(0, display.length() - 2);
+									// TODO Create a DropSelection for each JLabel, store that. Toggle visibility
+									// when right-clicked as opposed to creating a new DropSelection every time.
+									// Potential for memory leak.
+									DropSelectionV2 dl = new DropSelectionV2(m_frame, label, (Object[]) arr_options);
+									dl.addDropListener(dle -> {
 										entity.processCommand(dle.getSource().toString());
 										dl.setVisible(false);
 									});
 									dl.setVisible(true);
-									//entity.processCommand(Dialogs.showInputAreaDialog(null, display, ""));
+									// entity.processCommand(Dialogs.showInputAreaDialog(null, display, ""));
 								}
 							}
+						}
+
+
+						@Override
+						public void mouseEntered(MouseEvent e) {
+							if (label.isEnabled())
+								label.setBorder(BorderFactory.createLineBorder(Color.black, 2));
+						}
+
+
+						@Override
+						public void mouseExited(MouseEvent e) {
+							label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
 						}
 					});
 
@@ -355,13 +235,13 @@ public class GridWorld {
 
 
 				@Override
-				public void removeUpdate(DocumentEvent e) {
+				public void insertUpdate(DocumentEvent e) {
 					update();
 				}
 
 
 				@Override
-				public void insertUpdate(DocumentEvent e) {
+				public void removeUpdate(DocumentEvent e) {
 					update();
 				}
 
@@ -417,25 +297,149 @@ public class GridWorld {
 		}
 
 
-		public void addActionListener(ActionListener l) {
-			m_step.addActionListener(l);
-			m_run.addActionListener(l);
-			m_stop.addActionListener(l);
+		public void toggleRunning(boolean running) {
+			m_run.setEnabled(running);
+			m_step.setEnabled(running);
+			m_stop.setEnabled(!running);
 		}
+	}
+
+	private static String TAG = "GridWord";
+	// GridWorld
+	private GridMap m_map;
+
+	private Thread m_runThread;
+	// GridWindow
+	private int m_view_x, m_view_y;
+
+	private GridWindow m_window;
 
 
-		public int getComponentID(Component c) {
-			if (c.equals(m_step))
-				return STEP_BUTTON;
+	public GridWorld(GridMap map, int width, int height) {
+		if (map == null)
+			throw new RuntimeException("GridMap can not be null");
+		m_view_x = 0;
+		m_view_y = 0;
 
-			if (c.equals(m_stop))
-				return STOP_BUTTON;
+		m_window = new GridWindow(width, height);
 
-			if (c.equals(m_run))
-				return RUN_BUTTON;
+		m_runThread = null;
 
-			return UNKNOWN_COMPONENT;
+		m_window.addActionListener(e -> {
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STEP_BUTTON)
+				step();
 
-		}
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.RUN_BUTTON) {
+				if (m_runThread == null) {
+					m_runThread = new Thread() {
+						@Override
+						public void run() {
+							while (m_runThread != null) {
+								step();
+								try {
+									Thread.sleep(1000 / m_window.getRunSpeed());
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+						}
+					};
+					m_runThread.start();
+					m_window.toggleRunning(false);
+				}
+			}
+
+			if (m_window.getComponentID((Component) e.getSource()) == GridWindow.STOP_BUTTON) {
+				m_runThread = null;
+				m_window.toggleRunning(true);
+			}
+		});
+
+		setMap(map);
+
+		updateWindow();
+	}
+
+
+	public void addEntity(Entity e) {
+		m_map.addEntity(e);
+		updateWindow();
+	}
+
+
+	public GridMap getMap() {
+		return m_map;
+	}
+
+
+	/**
+	 * Modifies the position of the viewpoint of this GridWorld by the given
+	 * coordinates.
+	 * 
+	 * @param move_x
+	 * @param move_y
+	 */
+	public void moveView(int move_x, int move_y) {
+		Log.info(TAG, "moveView(): " + move_x + ", " + move_y);
+		m_view_x += move_x;
+		m_view_y += move_y;
+	}
+
+
+	public void setMap(GridMap newMap) {
+		m_map = newMap;
+		m_window.setMap(m_map);
+	}
+
+
+	/**
+	 * Sets the position of the viewpoint of this GridWorld to the given
+	 * coordinates.
+	 * 
+	 * @param move_x
+	 * @param move_y
+	 */
+	public void setView(int move_x, int move_y) {
+		Log.info(TAG, "setView(): " + move_x + ", " + move_y);
+		m_view_x = move_x;
+		m_view_y = move_y;
+	}
+
+
+	public void step() {
+		m_map.step();
+		updateWindow();
+	}
+
+
+	public void updateWindow() {
+		Log.info(TAG, "updateWindow()");
+		int width, height;
+		width = window().getWidth();
+		height = window().getHeight();
+		for (int x = 0; x < width; x++)
+			for (int y = 0; y < height; y++) {
+				Entity e;
+				if (x < 0 || y < 0 || x >= m_map.getWidth() || y >= m_map.getHeight()) {
+
+					e = null;
+					JLabel label = window().m_labels.get(x, y);
+					label.setIcon(null);
+					window().setEnabled(x, y, false);
+				} else {
+					e = m_map.get(new Location(x, y));
+					JLabel label = window().m_labels.get(x, y);
+					window().setEnabled(x, y, true);
+					if (e == null)
+						label.setIcon(null);
+					else
+						label.setIcon(new ImageIcon(e.getImage()));
+				}
+			}
+	}
+
+
+	public GridWindow window() {
+		return m_window;
 	}
 }
