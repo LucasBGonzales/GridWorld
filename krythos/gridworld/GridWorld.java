@@ -144,6 +144,59 @@ public class GridWorld {
 			// Setup GridPane
 			m_gridPane = new JPanel();
 			m_gridPane.setLayout(new GridLayout(m_width, m_height));
+			
+			AbsMouseListener mouselistener = new AbsMouseListener() {
+				private KContextMenu contextMenu;
+				
+				@Override
+				public void mouseClicked(MouseEvent e) {
+					JLabel label = (JLabel) e.getSource();
+					Log.get().info(TAG, "Clicked Label:" + label.getName());
+					if (m_map != null) {
+						int w, h;
+						w = Integer.valueOf(label.getName().split(",")[0].trim());
+						h = Integer.valueOf(label.getName().split(",")[1].trim());
+						Entity entity = m_map.get(new Location(w, h));
+						if (entity != null) {
+							String[] arr_options = entity.getCommands();
+							if (arr_options != null) {
+								String display = "";
+								for (String s : arr_options)
+									display += s + ", ";
+								display = display.substring(0, display.length() - 2);
+								// TODO Create a DropSelection for each JLabel, store that. Toggle
+								// visibility
+								// when right-clicked as opposed to creating a new DropSelection every
+								// time.
+								// Potential for memory leak.
+								contextMenu = new KContextMenu(m_frame, (Object[]) arr_options);
+								contextMenu.addContextListener(dle -> {
+									entity.processCommand(dle.getSource().toString());
+									contextMenu.setVisible(false);
+								});
+								contextMenu.setVisible(true);
+								// entity.processCommand(Dialogs.showInputAreaDialog(null, display,
+								// ""));
+							}
+						}
+					}
+				}
+
+
+				@Override
+				public void mouseEntered(MouseEvent e) {
+					JLabel label = (JLabel) e.getSource();
+					if (label.isEnabled())
+						label.setBorder(BorderFactory.createLineBorder(Color.black, 2));
+				}
+
+
+				@Override
+				public void mouseExited(MouseEvent e) {
+					JLabel label = (JLabel) e.getSource();
+					label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
+				}
+			};
 
 			// Generate Grid Labels
 			m_labels = new ArrayList<ArrayList<JLabel>>();
@@ -158,58 +211,7 @@ public class GridWorld {
 					label.setOpaque(true);
 					label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
 					label.setName(w + ", " + h);
-					// TODO This can share a single MouseListener and use
-					// ((JLabel)e.getSource())
-					// instead of a direct reference to the label. Change that later when
-					// you
-					// actually start implementing functionality for clicking the grid.
-					label.addMouseListener(new AbsMouseListener() {
-						@Override
-						public void mouseClicked(MouseEvent e) {
-							Log.get().info(TAG, "Clicked Label:" + label.getName());
-							if (m_map != null) {
-								int w, h;
-								w = Integer.valueOf(label.getName().split(",")[0].trim());
-								h = Integer.valueOf(label.getName().split(",")[1].trim());
-								Entity entity = m_map.get(new Location(w, h));
-								if (entity != null) {
-									String[] arr_options = entity.getCommands();
-									if (arr_options != null) {
-										String display = "";
-										for (String s : arr_options)
-											display += s + ", ";
-										display = display.substring(0, display.length() - 2);
-										// TODO Create a DropSelection for each JLabel, store that. Toggle
-										// visibility
-										// when right-clicked as opposed to creating a new DropSelection every
-										// time.
-										// Potential for memory leak.
-										KContextMenu dl = new KContextMenu(m_frame, (Object[]) arr_options);
-										dl.addContextListener(dle -> {
-											entity.processCommand(dle.getSource().toString());
-											dl.setVisible(false);
-										});
-										dl.setVisible(true);
-										// entity.processCommand(Dialogs.showInputAreaDialog(null, display,
-										// ""));
-									}
-								}
-							}
-						}
-
-
-						@Override
-						public void mouseEntered(MouseEvent e) {
-							if (label.isEnabled())
-								label.setBorder(BorderFactory.createLineBorder(Color.black, 2));
-						}
-
-
-						@Override
-						public void mouseExited(MouseEvent e) {
-							label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
-						}
-					});
+					label.addMouseListener(mouselistener);
 
 					m_gridPane.add(label);
 					m_labels.get(w).add(label);
@@ -312,16 +314,13 @@ public class GridWorld {
 			m_stop.setEnabled(!running);
 		}
 	}
-
-
-	private static String TAG = "GridWord";
+	
 	// GridWorld
 	private GridMap m_map;
-
 	private Thread m_runThread;
+	
 	// GridWindow
 	private int m_view_x, m_view_y;
-
 	private GridWindow m_window;
 
 
@@ -391,7 +390,7 @@ public class GridWorld {
 	 * @param move_y
 	 */
 	public void moveView(int move_x, int move_y) {
-		Log.get().info(TAG, "moveView(): " + move_x + ", " + move_y);
+		Log.get().info("moveView(): " + move_x + ", " + move_y);
 		m_view_x += move_x;
 		m_view_y += move_y;
 	}
@@ -411,7 +410,7 @@ public class GridWorld {
 	 * @param move_y
 	 */
 	public void setView(int move_x, int move_y) {
-		Log.get().info(TAG, "setView(): " + move_x + ", " + move_y);
+		Log.get().info("setView(): " + move_x + ", " + move_y);
 		m_view_x = move_x;
 		m_view_y = move_y;
 	}
@@ -424,7 +423,6 @@ public class GridWorld {
 
 
 	public void updateWindow() {
-		Log.get().info(TAG, "updateWindow()");
 		int width, height;
 		width = window().getWidth();
 		height = window().getHeight();

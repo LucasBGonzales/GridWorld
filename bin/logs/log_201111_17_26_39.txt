@@ -1,3 +1,0 @@
-
-[INFO] [GridWord] moveView
-[ERROR] [GridWord] Coordinates must have length of >= 2

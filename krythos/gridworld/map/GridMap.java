@@ -144,7 +144,6 @@ public class GridMap {
 
 
 	public void step() {
-		Log.get().info(TAG, "step()");
 		for (Entity entity : m_entities) {
 			entity.step();
 		}

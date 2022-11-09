@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
+import javax.swing.JOptionPane;
+
 import krythos.gridworld.GridWorld;
 import krythos.gridworld.map.Entity;
 import krythos.gridworld.map.GridMap;
@@ -21,7 +23,7 @@ public class TestRunner {
 		new Log();
 
 		int width = 10, height = 10;
-		GridWorld gw = new GridWorld(new GridMap(width, height, true), 12, 12);
+		GridWorld gw = new GridWorld(new GridMap(width, height, true), 10, 10);
 		Entity e = new GreenEntity(gw);
 		gw.addEntity(e);
 	}
@@ -32,7 +34,10 @@ public class TestRunner {
 		private BufferedImage image;
 		private GridWorld gw;
 		private int moveDirection = 1;
-		private final String[] m_commands = { "Go Down", "Go Up", "Go Right", "Go Left", "Inverse Direction", "Get Direction", "Step"};
+		private boolean moveVertical = false;
+		private final String[] m_commands = { "Go Down", "Go Up", "Go Right", "Go Left", "Inverse Direction",
+				"Get Direction", "Step", "Set Direction" };
+
 
 		public GreenEntity(GridWorld gw) {
 			this.gw = gw;
@@ -53,14 +58,37 @@ public class TestRunner {
 
 		@Override
 		public void step() {
-			if (l.getX() >= gw.getMap().getWidth() - 1 || (l.getX() <= 0 && moveDirection < 0))
-				inverseDirection();
-			l.modX(moveDirection);
+			if (moveVertical) {
+				if (l.getY() >= gw.getMap().getHeight() - 1 || (l.getY() <= 0 && moveDirection < 0))
+					inverseDirection();
+				l.modY(moveDirection);
+			} else {
+				if (l.getX() >= gw.getMap().getWidth() - 1 || (l.getX() <= 0 && moveDirection < 0))
+					inverseDirection();
+				l.modX(moveDirection);
+			}
 		}
 
 
 		private void inverseDirection() {
 			moveDirection *= -1;
+		}
+
+
+		private void setDirection(String dir) {
+			if (dir.toLowerCase().equals("up")) {
+				moveDirection = 1;
+				moveVertical = true;
+			} else if (dir.toLowerCase().equals("down")) {
+				moveDirection = -1;
+				moveVertical = true;
+			} else if (dir.toLowerCase().equals("left")) {
+				moveDirection = -1;
+				moveVertical = false;
+			} else if (dir.toLowerCase().equals("right")) {
+				moveDirection = 1;
+				moveVertical = false;
+			}
 		}
 
 
@@ -92,6 +120,11 @@ public class TestRunner {
 				Log.get().showMessageDialog("Direction: " + (moveDirection == 1 ? "Right" : "Left"));
 			else if (command.toLowerCase().equals(m_commands[6].toLowerCase()))
 				step();
+			else if (command.toLowerCase().equals(m_commands[7].toLowerCase())) {
+				String option = (String) JOptionPane.showInputDialog(null, "Enter The Direction", "Enter Direction",
+						JOptionPane.PLAIN_MESSAGE, null, new Object[] { "Up", "Down", "Left", "Right" }, "Up");
+				setDirection(option);
+			}
 			gw.updateWindow();
 		}
 
