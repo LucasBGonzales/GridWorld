@@ -11,6 +11,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -29,9 +31,8 @@ import krythos.gridworld.map.Entity;
 import krythos.gridworld.map.GridMap;
 import krythos.gridworld.map.Location;
 import krythos.util.abstract_interfaces.AbsMouseListener;
-import krythos.util.dimensional_arraylist.ArrayList2D;
 import krythos.util.logger.Log;
-import krythos.util.swing.DropSelectionV2;
+import krythos.util.swing.kcontextmenu.KContextMenu;
 
 public class GridWorld {
 	public class GridWindow {
@@ -45,7 +46,7 @@ public class GridWorld {
 		private JFrame m_frame;
 		private JPanel m_contentPane, m_gridPane, m_controlPane;
 		private JButton m_step, m_run, m_stop;
-		private ArrayList2D<JLabel> m_labels;
+		private List<ArrayList<JLabel>> m_labels;
 		private int m_width, m_height;
 		private int m_run_speed;
 		private JSlider m_speedSlider;
@@ -54,6 +55,7 @@ public class GridWorld {
 
 		private Color m_enabledColor = Color.LIGHT_GRAY;
 		private Color m_disabledColor = Color.DARK_GRAY;
+
 
 		public GridWindow(int width, int height) {
 			setSize(width, height);
@@ -99,7 +101,7 @@ public class GridWorld {
 
 
 		public void setEnabled(int x, int y, boolean enabled) {
-			JLabel label = m_labels.get(x, y);
+			JLabel label = m_labels.get(x).get(y);
 			label.setEnabled(enabled);
 
 			if (enabled)
@@ -144,11 +146,11 @@ public class GridWorld {
 			m_gridPane.setLayout(new GridLayout(m_width, m_height));
 
 			// Generate Grid Labels
-			m_labels = new ArrayList2D<JLabel>(m_width, m_height);
+			m_labels = new ArrayList<ArrayList<JLabel>>();
 			for (int h = 0; h < m_height; h++) {
 				for (int w = 0; w < m_width; w++) {
 					if (h == 0)
-						m_labels.addRow();
+						m_labels.add(new ArrayList<JLabel>());
 					JLabel label = new JLabel();
 
 					// Init Label
@@ -156,34 +158,41 @@ public class GridWorld {
 					label.setOpaque(true);
 					label.setBorder(BorderFactory.createLineBorder(Color.black, 1));
 					label.setName(w + ", " + h);
-					// TODO This can share a single MouseListener and use ((JLabel)e.getSource())
-					// instead of a direct reference to the label. Change that later when you
+					// TODO This can share a single MouseListener and use
+					// ((JLabel)e.getSource())
+					// instead of a direct reference to the label. Change that later when
+					// you
 					// actually start implementing functionality for clicking the grid.
 					label.addMouseListener(new AbsMouseListener() {
 						@Override
 						public void mouseClicked(MouseEvent e) {
-							Log.info(TAG, "Clicked Label:" + label.getName());
+							Log.get().info(TAG, "Clicked Label:" + label.getName());
 							if (m_map != null) {
 								int w, h;
 								w = Integer.valueOf(label.getName().split(",")[0].trim());
 								h = Integer.valueOf(label.getName().split(",")[1].trim());
 								Entity entity = m_map.get(new Location(w, h));
-								String[] arr_options = entity.getCommands();
-								if (arr_options != null) {
-									String display = "";
-									for (String s : arr_options)
-										display += s + ", ";
-									display = display.substring(0, display.length() - 2);
-									// TODO Create a DropSelection for each JLabel, store that. Toggle visibility
-									// when right-clicked as opposed to creating a new DropSelection every time.
-									// Potential for memory leak.
-									DropSelectionV2 dl = new DropSelectionV2(m_frame, label, (Object[]) arr_options);
-									dl.addDropListener(dle -> {
-										entity.processCommand(dle.getSource().toString());
-										dl.setVisible(false);
-									});
-									dl.setVisible(true);
-									// entity.processCommand(Dialogs.showInputAreaDialog(null, display, ""));
+								if (entity != null) {
+									String[] arr_options = entity.getCommands();
+									if (arr_options != null) {
+										String display = "";
+										for (String s : arr_options)
+											display += s + ", ";
+										display = display.substring(0, display.length() - 2);
+										// TODO Create a DropSelection for each JLabel, store that. Toggle
+										// visibility
+										// when right-clicked as opposed to creating a new DropSelection every
+										// time.
+										// Potential for memory leak.
+										KContextMenu dl = new KContextMenu(m_frame, (Object[]) arr_options);
+										dl.addContextListener(dle -> {
+											entity.processCommand(dle.getSource().toString());
+											dl.setVisible(false);
+										});
+										dl.setVisible(true);
+										// entity.processCommand(Dialogs.showInputAreaDialog(null, display,
+										// ""));
+									}
 								}
 							}
 						}
@@ -203,7 +212,7 @@ public class GridWorld {
 					});
 
 					m_gridPane.add(label);
-					m_labels.add(w, label);
+					m_labels.get(w).add(label);
 				}
 			}
 
@@ -304,6 +313,7 @@ public class GridWorld {
 		}
 	}
 
+
 	private static String TAG = "GridWord";
 	// GridWorld
 	private GridMap m_map;
@@ -373,14 +383,15 @@ public class GridWorld {
 
 
 	/**
-	 * Modifies the position of the viewpoint of this GridWorld by the given
+	 * Modifies the position of the viewpoint of this GridWorld by the
+	 * given
 	 * coordinates.
 	 * 
 	 * @param move_x
 	 * @param move_y
 	 */
 	public void moveView(int move_x, int move_y) {
-		Log.info(TAG, "moveView(): " + move_x + ", " + move_y);
+		Log.get().info(TAG, "moveView(): " + move_x + ", " + move_y);
 		m_view_x += move_x;
 		m_view_y += move_y;
 	}
@@ -400,7 +411,7 @@ public class GridWorld {
 	 * @param move_y
 	 */
 	public void setView(int move_x, int move_y) {
-		Log.info(TAG, "setView(): " + move_x + ", " + move_y);
+		Log.get().info(TAG, "setView(): " + move_x + ", " + move_y);
 		m_view_x = move_x;
 		m_view_y = move_y;
 	}
@@ -413,7 +424,7 @@ public class GridWorld {
 
 
 	public void updateWindow() {
-		Log.info(TAG, "updateWindow()");
+		Log.get().info(TAG, "updateWindow()");
 		int width, height;
 		width = window().getWidth();
 		height = window().getHeight();
@@ -423,12 +434,12 @@ public class GridWorld {
 				if (x < 0 || y < 0 || x >= m_map.getWidth() || y >= m_map.getHeight()) {
 
 					e = null;
-					JLabel label = window().m_labels.get(x, y);
+					JLabel label = window().m_labels.get(x).get(y);
 					label.setIcon(null);
 					window().setEnabled(x, y, false);
 				} else {
 					e = m_map.get(new Location(x, y));
-					JLabel label = window().m_labels.get(x, y);
+					JLabel label = window().m_labels.get(x).get(y);
 					window().setEnabled(x, y, true);
 					if (e == null)
 						label.setIcon(null);

@@ -18,7 +18,7 @@ public class TestRunner {
 
 
 	public void run() {
-		new Log(Log.LEVEL_DEBUG);
+		new Log();
 
 		int width = 10, height = 10;
 		GridWorld gw = new GridWorld(new GridMap(width, height, true), 12, 12);
@@ -89,7 +89,7 @@ public class TestRunner {
 			else if (command.toLowerCase().equals(m_commands[4].toLowerCase()))
 				inverseDirection();
 			else if (command.toLowerCase().equals(m_commands[5].toLowerCase()))
-				Log.printDialog("Direction: " + (moveDirection == 1 ? "Right" : "Left"));
+				Log.get().showMessageDialog("Direction: " + (moveDirection == 1 ? "Right" : "Left"));
 			else if (command.toLowerCase().equals(m_commands[6].toLowerCase()))
 				step();
 			gw.updateWindow();

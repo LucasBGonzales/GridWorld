@@ -84,7 +84,7 @@ public class GridMap {
 		int y = loc.getY();
 
 		if (x < 0 || y < 0 || x >= m_width || y >= m_height) {
-			Log.throwRuntimeException(TAG, "get(Location): Location Out of Bounds");
+			Log.get().throwRuntimeException(TAG, "get(Location): Location Out of Bounds");
 			return null;
 		}
 
@@ -144,7 +144,7 @@ public class GridMap {
 
 
 	public void step() {
-		Log.info(TAG, "step()");
+		Log.get().info(TAG, "step()");
 		for (Entity entity : m_entities) {
 			entity.step();
 		}
